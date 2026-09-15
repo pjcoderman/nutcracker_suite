@@ -4,7 +4,7 @@ if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
   set(CMAKE_CUDA_ARCHITECTURES 86) # Replace with your target compute capability
 endif()
 
-project("unnamed_rpg" C CXX ASM CUDA)
+project("nutcracker_suite" C CXX ASM CUDA)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
