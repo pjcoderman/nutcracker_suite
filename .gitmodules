@@ -1,0 +1,18 @@
+[submodule "vendor/ggml"]
+	path = vendor/ggml
+	url = https://github.com/ggml-org/ggml.git
+[submodule "vendor/llama.cpp"]
+	path = vendor/llama.cpp
+	url = https://github.com/ggml-org/llama.cpp.git
+[submodule "vendor/SQLiteCpp"]
+	path = vendor/SQLiteCpp
+	url = https://github.com/SRombauts/SQLiteCpp.git
+[submodule "vendor/json"]
+	path = vendor/json
+	url = https://github.com/nlohmann/json.git
+[submodule "vendor/json-schema-validator"]
+	path = vendor/json-schema-validator
+	url = https://github.com/pboettch/json-schema-validator.git
+[submodule "vendor/sqlite-vec"]
+	path = vendor/sqlite-vec
+	url = https://github.com/asg017/sqlite-vec.git

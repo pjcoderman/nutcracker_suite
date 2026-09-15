@@ -1,0 +1,4 @@
+---
+# Disable formatting for this directory and its subdirectories
+DisableFormat: true
+...
