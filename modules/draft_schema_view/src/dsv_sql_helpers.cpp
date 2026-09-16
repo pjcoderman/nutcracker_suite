@@ -130,8 +130,6 @@ int get_unique_constraints(
   // Track unique index names
   std::vector<std::string> unique_index_names;
   while ((rc = sqlite3_step(list_stmt)) == SQLITE_ROW) {
-    // TODO: double check unique and name are at ordinals 2 and 1 respectively
-    // for sure
     int is_unique =
         sqlite3_column_int(list_stmt, 2); // 'unique' flag is at index 2
     if (is_unique == 1) {
@@ -165,7 +163,6 @@ int get_unique_constraints(
 
     std::vector<std::string> constraint_columns;
     while ((rc = sqlite3_step(info_stmt)) == SQLITE_ROW) {
-      // TODO: double check that name is at ordinal 2
       const unsigned char *col_name_raw =
           sqlite3_column_text(info_stmt, 2); // 'name' of column is at index 2
       if (col_name_raw) {
@@ -190,13 +187,42 @@ int get_unique_constraints(
                                                nlohmann::json &prop_schema) {
   bool supports_object, supports_string, supports_array;
   std::string contentEncoding, strFormat;
+  std::string prop_type;
+  nlohmann::json type_json;
+
   switch (sqlite3_value_type(value)) {
 
   case SQLITE_NULL:
     return nlohmann::json{};
 
-  case SQLITE_INTEGER:
-    return nlohmann::json(sqlite3_value_int64(value));
+  case SQLITE_INTEGER: {
+    bool is_boolean = false;
+    if (prop_schema.is_string()) {
+      prop_type = prop_schema.get<std::string>();
+      is_boolean = prop_type == "boolean";
+    } else if (prop_schema.is_object()) {
+      type_json = prop_schema.value("type", nlohmann::json{});
+      if (type_json.is_string()) {
+        prop_type = type_json.get<std::string>();
+        is_boolean = prop_type == "boolean";
+      } else if (type_json.is_array()) {
+        for (auto it = type_json.begin(); it != type_json.end(); ++it) {
+          prop_type = it->get<std::string>();
+          is_boolean = prop_type == "boolean";
+          if (is_boolean) {
+            break;
+          }
+        }
+      }
+    }
+
+    auto int_value = sqlite3_value_int64(value);
+    if (is_boolean && (int_value == 0 || int_value == 1)) {
+      return nlohmann::json(int_value == 1);
+    }
+
+    return nlohmann::json(int_value);
+  } break;
 
   case SQLITE_FLOAT:
     return nlohmann::json(sqlite3_value_double(value));
@@ -210,14 +236,13 @@ int get_unique_constraints(
       blob_vec = std::vector<uint8_t>(blob, blob + blob_len);
     }
 
-    std::string prop_type;
     if (prop_schema.is_string()) {
       prop_type = prop_schema.get<std::string>();
       supports_object = prop_type == "object";
       supports_string = prop_type == "string";
       supports_array = prop_type == "array";
     } else if (prop_schema.is_object()) {
-      auto type_json = prop_schema.value("type", nlohmann::json{});
+      type_json = prop_schema.value("type", nlohmann::json{});
       if (type_json.is_string()) {
         prop_type = type_json.get<std::string>();
         supports_object = prop_type == "object";
@@ -275,14 +300,13 @@ int get_unique_constraints(
       text_str = std::string(text, text + text_len);
     }
 
-    std::string prop_type;
     if (prop_schema.is_string()) {
       prop_type = prop_schema.get<std::string>();
       supports_object = prop_type == "object";
       supports_string = prop_type == "string";
       supports_array = prop_type == "array";
     } else if (prop_schema.is_object()) {
-      auto type_json = prop_schema.value("type", nlohmann::json{});
+      type_json = prop_schema.value("type", nlohmann::json{});
       if (type_json.is_string()) {
         prop_type = type_json.get<std::string>();
         supports_object = prop_type == "object";
@@ -349,10 +373,7 @@ construct_json_object(nlohmann::json &schema, int colc,
 [[nodiscard]] nlohmann::json
 construct_json_row(DraftSchemaViewVTab *pVTab, int colc, sqlite3_value **colv) {
   if (colc != pVTab->columnCount) {
-    // TODO: Check what column count really is and how columns actually line-up
-    // (or not) then finish this if-clause checking it (fix the check if needed;
-    // record the error)
-    return SQLITE_ERROR;
+    throw std::runtime_error("Column count does not match that of the vtable.");
   }
 
   nlohmann::json row_json = nlohmann::json::object();
@@ -371,7 +392,7 @@ construct_json_row(DraftSchemaViewVTab *pVTab, int colc, sqlite3_value **colv) {
     auto col_name = pVTab->zColumnList[i];
 
     if (col_val == nullptr || col_name == nullptr) {
-      return SQLITE_ERROR;
+      throw std::runtime_error("A provided column name or value was null.");
     }
 
     auto prop_schema = properties.value(col_name, nlohmann::json{});

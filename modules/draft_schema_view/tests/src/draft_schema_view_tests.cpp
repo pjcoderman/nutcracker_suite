@@ -30,8 +30,6 @@ static void create_simple_schema_view(
     const char *table_name = "simple_schema_store",
     const char *schema_uri = "https://example.com/schemas/simple_schema.json");
 
-// TODO: fix implementation to properly handle boolean vs. integer and add
-// boolean_value prop below
 static const char *pSimpleSchema = R"(
     {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -48,6 +46,10 @@ static const char *pSimpleSchema = R"(
                 "type": "null",
                 "description": "Null value example"
             },
+            "boolean_value": {
+              "type": "boolean",
+              "description": "A boolean value; not to be confused with an integer."
+            },
             "double_value": {
                 "type": "number",
                 "description": "A double-precision floating-point value for test."                    
@@ -58,7 +60,11 @@ static const char *pSimpleSchema = R"(
             }
         },
         "required": [
-            "integer_value"
+            "integer_value",
+            "null_value",
+            "boolean_value",
+            "double_value",
+            "text_value"
         ],
         "additionalProperties": false
     }
@@ -115,6 +121,7 @@ TEST(draft_schema_view_test, draft_schema_valid_simple_valid_case) {
         SELECT draft_schema_valid('https://example.com/schemas/simple_schema.json',
             'integer_value', 1,
             'null_value', NULL,
+            'boolean_value', false,
             'double_value', 1.234,
             'text_value', 'Some Text'
         );
@@ -162,6 +169,7 @@ TEST(draft_schema_view_test, draft_schema_valid_simple_invalid_case) {
         SELECT draft_schema_valid('https://example.com/schemas/simple_schema.json',
             'integer_value', 'Not an integer',
             'null_value', 42,
+            'boolean_value', true,
             'double_value', '1.234',
             'text_value', false
         );
@@ -211,8 +219,8 @@ TEST(draft_schema_view_test, draft_schema_view_filter_simple_valid_case) {
       "simple_schema_store", "https://example.com/schemas/simple_schema.json");
 
   const char *insert_qry = R"(
-        INSERT INTO simple_schema_view (integer_value, null_value, double_value, text_value)
-        VALUES(1, NULL, 2.34, 'Some Text');
+        INSERT INTO simple_schema_view (integer_value, null_value, boolean_value, double_value, text_value)
+        VALUES(1, NULL, true, 2.34, 'Some Text');
     )";
 
   char *pzErr = nullptr;
@@ -220,7 +228,7 @@ TEST(draft_schema_view_test, draft_schema_view_filter_simple_valid_case) {
   ASSERT_EQ(rc, SQLITE_OK);
 
   const char *select_qry = R"(
-        SELECT integer_value, null_value, double_value, text_value
+        SELECT integer_value, null_value, boolean_value, double_value, text_value
         FROM simple_schema_view;
     )";
 
@@ -234,19 +242,22 @@ TEST(draft_schema_view_test, draft_schema_view_filter_simple_valid_case) {
   ASSERT_EQ(rc, SQLITE_ROW);
 
   auto colc = sqlite3_column_count(stmt);
-  ASSERT_EQ(colc, 4);
+  ASSERT_EQ(colc, 5);
 
   ASSERT_EQ(SQLITE_INTEGER, sqlite3_column_type(stmt, 0));
   ASSERT_EQ(1, sqlite3_column_int(stmt, 0));
 
   ASSERT_EQ(SQLITE_NULL, sqlite3_column_type(stmt, 1));
 
-  ASSERT_EQ(SQLITE_FLOAT, sqlite3_column_type(stmt, 2));
-  ASSERT_DOUBLE_EQ(2.34, sqlite3_column_double(stmt, 2));
+  ASSERT_EQ(SQLITE_INTEGER, sqlite3_column_type(stmt, 2));
+  ASSERT_EQ(1, sqlite3_column_int(stmt, 2));
 
-  ASSERT_EQ(SQLITE3_TEXT, sqlite3_column_type(stmt, 3));
+  ASSERT_EQ(SQLITE_FLOAT, sqlite3_column_type(stmt, 3));
+  ASSERT_DOUBLE_EQ(2.34, sqlite3_column_double(stmt, 3));
+
+  ASSERT_EQ(SQLITE3_TEXT, sqlite3_column_type(stmt, 4));
   auto txt =
-      read_string(sqlite3_column_text(stmt, 3), sqlite3_column_bytes(stmt, 3));
+      read_string(sqlite3_column_text(stmt, 4), sqlite3_column_bytes(stmt, 4));
   ASSERT_EQ(txt, "Some Text");
 
   rc = sqlite3_step(stmt);
@@ -278,8 +289,8 @@ TEST(draft_schema_view_test, draft_schema_view_shadow_simple_valid_case) {
       "simple_schema_store", "https://example.com/schemas/simple_schema.json");
 
   const char *insert_qry = R"(
-        INSERT INTO simple_schema_view (integer_value, null_value, double_value, text_value)
-        VALUES(1, NULL, 2.34, 'Some Text');
+        INSERT INTO simple_schema_view (integer_value, null_value, boolean_value, double_value, text_value)
+        VALUES(1, NULL, TRUE, 2.34, 'Some Text');
     )";
 
   char *pzErr = nullptr;
@@ -287,7 +298,7 @@ TEST(draft_schema_view_test, draft_schema_view_shadow_simple_valid_case) {
   ASSERT_EQ(rc, SQLITE_OK);
 
   const char *select_qry = R"(
-        SELECT integer_value, null_value, double_value, text_value
+        SELECT integer_value, null_value, boolean_value, double_value, text_value
         FROM simple_schema_view;
     )";
 
@@ -301,19 +312,22 @@ TEST(draft_schema_view_test, draft_schema_view_shadow_simple_valid_case) {
   ASSERT_EQ(rc, SQLITE_ROW);
 
   auto colc = sqlite3_column_count(stmt);
-  ASSERT_EQ(colc, 4);
+  ASSERT_EQ(colc, 5);
 
   ASSERT_EQ(SQLITE_INTEGER, sqlite3_column_type(stmt, 0));
   ASSERT_EQ(1, sqlite3_column_int(stmt, 0));
 
   ASSERT_EQ(SQLITE_NULL, sqlite3_column_type(stmt, 1));
 
-  ASSERT_EQ(SQLITE_FLOAT, sqlite3_column_type(stmt, 2));
-  ASSERT_DOUBLE_EQ(2.34, sqlite3_column_double(stmt, 2));
+  ASSERT_EQ(SQLITE_INTEGER, sqlite3_column_type(stmt, 2));
+  ASSERT_EQ(1, sqlite3_column_int(stmt, 2));
 
-  ASSERT_EQ(SQLITE3_TEXT, sqlite3_column_type(stmt, 3));
+  ASSERT_EQ(SQLITE_FLOAT, sqlite3_column_type(stmt, 3));
+  ASSERT_DOUBLE_EQ(2.34, sqlite3_column_double(stmt, 3));
+
+  ASSERT_EQ(SQLITE3_TEXT, sqlite3_column_type(stmt, 4));
   auto txt =
-      read_string(sqlite3_column_text(stmt, 3), sqlite3_column_bytes(stmt, 3));
+      read_string(sqlite3_column_text(stmt, 4), sqlite3_column_bytes(stmt, 4));
   ASSERT_EQ(txt, "Some Text");
 
   rc = sqlite3_step(stmt);
@@ -324,7 +338,7 @@ TEST(draft_schema_view_test, draft_schema_view_shadow_simple_valid_case) {
       "simple_schema_store", "https://example.com/schemas/simple_schema.json");
 
   const char *select_qry2 = R"(
-        SELECT integer_value, null_value, double_value, text_value
+        SELECT integer_value, null_value, boolean_value, double_value, text_value
         FROM simple_schema_view2;
     )";
 
@@ -338,19 +352,22 @@ TEST(draft_schema_view_test, draft_schema_view_shadow_simple_valid_case) {
   ASSERT_EQ(rc, SQLITE_ROW);
 
   colc = sqlite3_column_count(stmt);
-  ASSERT_EQ(colc, 4);
+  ASSERT_EQ(colc, 5);
 
   ASSERT_EQ(SQLITE_INTEGER, sqlite3_column_type(stmt, 0));
   ASSERT_EQ(1, sqlite3_column_int(stmt, 0));
 
   ASSERT_EQ(SQLITE_NULL, sqlite3_column_type(stmt, 1));
 
-  ASSERT_EQ(SQLITE_FLOAT, sqlite3_column_type(stmt, 2));
-  ASSERT_DOUBLE_EQ(2.34, sqlite3_column_double(stmt, 2));
+  ASSERT_EQ(SQLITE_INTEGER, sqlite3_column_type(stmt, 2));
+  ASSERT_EQ(1, sqlite3_column_int(stmt, 2));
 
-  ASSERT_EQ(SQLITE3_TEXT, sqlite3_column_type(stmt, 3));
+  ASSERT_EQ(SQLITE_FLOAT, sqlite3_column_type(stmt, 3));
+  ASSERT_DOUBLE_EQ(2.34, sqlite3_column_double(stmt, 3));
+
+  ASSERT_EQ(SQLITE3_TEXT, sqlite3_column_type(stmt, 4));
   txt =
-      read_string(sqlite3_column_text(stmt, 3), sqlite3_column_bytes(stmt, 3));
+      read_string(sqlite3_column_text(stmt, 4), sqlite3_column_bytes(stmt, 4));
   ASSERT_EQ(txt, "Some Text");
 
   rc = sqlite3_step(stmt);
@@ -577,7 +594,8 @@ void create_simple_schema_table(sqlite3 *db, const char *table_name) {
   const std::string create_table_qry = std::format(R"(
         CREATE TABLE {} (
             integer_value INTEGER PRIMARY KEY, 
-            null_value TEXT, 
+            null_value TEXT,
+            boolean_value INTEGER, 
             double_value REAL,
             text_value TEXT NOT NULL
         )

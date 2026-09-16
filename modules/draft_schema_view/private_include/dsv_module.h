@@ -106,9 +106,6 @@ int draft_schema_view_cursor_open(sqlite3_vtab *pVTab,
  */
 int draft_schema_view_cursor_close(sqlite3_vtab_cursor *pCursor);
 
-// TODO: Figure out the right description for draft_schema_view_cursor_xxx
-// functions (based on xFilter and similar documentation)
-
 /**
  * @brief Implementation of the sqlite3_module xFilter callback for
  * draft_schema_view. Initializes the filter for a virtual table query.
