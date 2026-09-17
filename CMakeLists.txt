@@ -36,3 +36,5 @@ add_subdirectory("vendor" SYSTEM)
 add_subdirectory("modules")
 add_subdirectory("game")
 add_subdirectory("models")
+
+include("${CMAKE_CURRENT_LIST_DIR}/cmake/coverage.cmake")
