@@ -185,7 +185,7 @@ int get_unique_constraints(
 
 [[nodiscard]] nlohmann::json sql_value_to_json(sqlite3_value *value,
                                                nlohmann::json &prop_schema) {
-  bool supports_object, supports_string, supports_array;
+  bool supports_object = false, supports_string = false, supports_array = false;
   std::string contentEncoding, strFormat;
   std::string prop_type;
   nlohmann::json type_json;
@@ -421,7 +421,7 @@ int sqlite3_bind_json(sqlite3_stmt *stmt, int ord, nlohmann::json &row_json,
     } else if (json_val.is_binary()) {
       auto blob_vec = json_val.get<std::vector<uint8_t>>();
       rc = sqlite3_bind_blob(stmt, ord, blob_vec.data(), (int)blob_vec.size(),
-                             nullptr);
+                             SQLITE_TRANSIENT);
     } else if (json_val.is_boolean()) {
       rc = sqlite3_bind_int(stmt, ord, json_val.get<bool>() ? 1 : 0);
     } else if (json_val.is_string()) {
