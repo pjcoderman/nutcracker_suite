@@ -116,16 +116,10 @@ int get_unique_constraints(
   int rc =
       sqlite3_prepare_v2(db, index_list_qry.c_str(), -1, &list_stmt, nullptr);
   if (rc != SQLITE_OK) {
-    std::cerr << "Failed to prepare index_list statement: "
-              << sqlite3_errmsg(db) << "\n";
     return SQLITE_ERROR;
   }
 
   StatementFinalizer defered_stmt_finalize(list_stmt);
-  // rc = sqlite3_bind_text(list_stmt, 1, table_name.data(), -1, nullptr);
-  // if (rc != SQLITE_OK) {
-  //     return SQLITE_ERROR;
-  // }
 
   // Track unique index names
   std::vector<std::string> unique_index_names;
@@ -400,50 +394,4 @@ construct_json_row(DraftSchemaViewVTab *pVTab, int colc, sqlite3_value **colv) {
   }
 
   return row_json;
-}
-
-int sqlite3_bind_json(sqlite3_stmt *stmt, int ord, nlohmann::json &row_json,
-                      std::vector<ColumnDef> &column_defs) {
-  int rc = SQLITE_OK;
-  for (auto &col : column_defs) {
-
-    auto json_val = row_json.value(col.get_name(), nlohmann::json{});
-
-    if (json_val.is_null()) {
-      rc = sqlite3_bind_null(stmt, ord);
-    } else if (json_val.is_number()) {
-      if (json_val.is_number_integer()) {
-        rc = sqlite3_bind_int64(stmt, ord,
-                                sqlite3_int64(json_val.get<int64_t>()));
-      } else {
-        rc = sqlite3_bind_double(stmt, ord, json_val.get<double>());
-      }
-    } else if (json_val.is_binary()) {
-      auto blob_vec = json_val.get<std::vector<uint8_t>>();
-      rc = sqlite3_bind_blob(stmt, ord, blob_vec.data(), (int)blob_vec.size(),
-                             SQLITE_TRANSIENT);
-    } else if (json_val.is_boolean()) {
-      rc = sqlite3_bind_int(stmt, ord, json_val.get<bool>() ? 1 : 0);
-    } else if (json_val.is_string()) {
-      auto text = json_val.get<std::string>();
-      rc = sqlite3_bind_text(stmt, ord, text.c_str(), -1, SQLITE_TRANSIENT);
-    } else /* if (json_val.is_object() || json_val.is_array()) */ {
-      if (string_contains_ci(col.get_type(), "BLOB")) {
-        auto bson = nlohmann::json::to_bson(json_val);
-        rc = sqlite3_bind_blob(stmt, ord, bson.data(), bson.size(),
-                               SQLITE_TRANSIENT);
-      } else {
-        auto json = json_val.dump();
-        rc = sqlite3_bind_text(stmt, ord, json.c_str(), -1, SQLITE_TRANSIENT);
-      }
-    }
-
-    if (rc != SQLITE_OK) {
-      break;
-    }
-
-    ord++;
-  }
-
-  return rc;
 }

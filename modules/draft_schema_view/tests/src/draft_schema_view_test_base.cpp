@@ -72,6 +72,29 @@ void DraftSchemaViewSchemaTestBase::SetUp() {
   ASSERT_EQ(rc, SQLITE_OK) << "Failed to insert schema to registry";
 }
 
+void DraftSchemaViewTestBase::ExpectSqlError(
+    const std::string &query, const std::string &expected_msg_substring) const {
+  sqlite3_stmt *stmt = nullptr;
+  int rc = sqlite3_prepare_v2(Database(), query.c_str(), -1, &stmt, nullptr);
+  if (rc != SQLITE_OK) {
+    std::string err_msg = sqlite3_errmsg(Database());
+    EXPECT_TRUE(err_msg.find(expected_msg_substring) != std::string::npos)
+        << "Expected prepare error containing: '" << expected_msg_substring
+        << "', but got: '" << err_msg << "'";
+    return;
+  }
+
+  StatementFinalizer defer_stmt_finalize(stmt);
+  rc = sqlite3_step(stmt);
+
+  EXPECT_EQ(rc, SQLITE_ERROR);
+
+  std::string err_msg = sqlite3_errmsg(Database());
+  EXPECT_TRUE(err_msg.find(expected_msg_substring) != std::string::npos)
+      << "Expected step error containing: '" << expected_msg_substring
+      << "', but got: '" << err_msg << "'";
+}
+
 void ensure_table_info(sqlite3 *db, const std::string &table_name,
                        const std::vector<ColumnDef> &columns) {
 

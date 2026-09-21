@@ -90,7 +90,7 @@ int draft_schema_view_destroy(sqlite3_vtab *pVTab) {
   DraftSchemaViewVTab *p = (DraftSchemaViewVTab *)pVTab;
 
   draft_schema_viewer_remove_from_view_registry(
-      p->db, p->pOwner->getSchemaRegistryTableName().c_str(), p->zVTableName);
+      p->db, p->pOwner->getViewRegistryTableName().c_str(), p->zVTableName);
 
   if (p->zShadowName != nullptr) {
     char *drop_sql =

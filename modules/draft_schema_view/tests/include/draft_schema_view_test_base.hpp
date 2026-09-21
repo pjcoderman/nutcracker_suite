@@ -33,6 +33,9 @@ protected:
 
   sqlite3 *Database() const noexcept;
 
+  void ExpectSqlError(const std::string &query,
+                      const std::string &expected_msg_substring) const;
+
 public:
   DraftSchemaViewTestBase(const std::string_view view_registry_table_name =
                               DEFAULT_TEST_VIEW_REGISTRY_TABLE_NAME,

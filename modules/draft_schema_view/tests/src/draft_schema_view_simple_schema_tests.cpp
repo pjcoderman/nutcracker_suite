@@ -1,4 +1,5 @@
 #include "draft_schema_view_test_base.hpp"
+#include "draft_schema_valid.h"
 #include <format>
 #include <string>
 
@@ -398,4 +399,59 @@ TEST_F(DraftSchemaViewSimpleSchemaTests, shadow_simple_valid_case) {
 
   rc = sqlite3_step(stmt);
   ASSERT_EQ(rc, SQLITE_DONE) << "Expected only one row";
+}
+
+TEST_F(DraftSchemaViewSimpleSchemaTests, teardown_vtable) {
+  ASSERT_NO_FATAL_FAILURE(create_simple_schema_view(
+      "simple_schema_view", DRAFT_SCHEMA_VIEW_VTAB_FILTER));
+
+  const std::string drop_vtable_sql = "DROP TABLE simple_schema_view;";
+
+  char *errmsg;
+  auto rc = sqlite3_exec(Database(), drop_vtable_sql.c_str(), nullptr, nullptr,
+                         &errmsg);
+
+  ASSERT_EQ(rc, SQLITE_OK) << "Error dropping vtable: " << errmsg;
+}
+
+TEST_F(DraftSchemaViewSimpleSchemaTests, draft_schema_valid_error_cases) {
+  // 1. Argument count checks
+  ExpectSqlError(
+      "SELECT draft_schema_valid('https://example.com/schemas/simple_schema.json');",
+      "Usage: draft_schema_valid"
+  );
+  ExpectSqlError(
+      "SELECT draft_schema_valid('https://example.com/schemas/simple_schema.json', 'integer_value');",
+      "Usage: draft_schema_valid"
+  );
+
+  // 2. Null/Empty URI checks
+  ExpectSqlError(
+      "SELECT draft_schema_valid(NULL, 'integer_value', 1);",
+      "schema_uri cannot be null or empty."
+  );
+  ExpectSqlError(
+      "SELECT draft_schema_valid('', 'integer_value', 1);",
+      "schema_uri cannot be null or empty."
+  );
+
+  // 3. Unregistered schema URI check
+  ExpectSqlError(
+      "SELECT draft_schema_valid('https://example.com/unregistered.json', 'integer_value', 1);",
+      "The specified schema is not registered."
+  );
+}
+
+TEST_F(DraftSchemaViewSimpleSchemaTests, null_state_invariant_test) {
+  // Register a temporary SQL function with null user data to trigger the nullptr state check
+  int rc = sqlite3_create_function_v2(
+      Database(), "draft_schema_valid_null_state", -1,
+      SQLITE_UTF8, nullptr, draft_schema_valid, nullptr, nullptr, nullptr
+  );
+  ASSERT_EQ(rc, SQLITE_OK);
+
+  ExpectSqlError(
+      "SELECT draft_schema_valid_null_state('https://example.com/schemas/simple_schema.json', 'integer_value', 1);",
+      "Failed to obtain draft schema viewer state."
+  );
 }

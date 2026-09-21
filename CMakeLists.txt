@@ -10,6 +10,13 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+option(ENABLE_COVERAGE "Build binaries with LLVM coverage instrumentation" OFF)
+
+if(ENABLE_COVERAGE)
+    add_compile_options(/clang:-fprofile-instr-generate /clang:-fcoverage-mapping)
+    add_link_options("SHELL:-Xlinker -fprofile-instr-generate")
+endif()
+
 # Turn off llama.cpp tests/examples so they don't slow down build times
 set(GGML_BUILD_EXAMPLES OFF CACHE INTERNAL "")
 set(GGML_BUILD_TESTS    OFF CACHE INTERNAL "")

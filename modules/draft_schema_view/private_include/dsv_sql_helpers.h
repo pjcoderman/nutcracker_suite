@@ -4,7 +4,6 @@
 #include "nlohmann/json.hpp"
 #include "sqlite3.h"
 
-
 #include <string>
 #include <vector>
 
@@ -51,21 +50,6 @@ int get_unique_constraints(
     std::vector<std::vector<std::string>> &unique_constraints);
 
 // SQL JSON helpers
-
-/**
- * @brief Binds the values of the specified statement, beginning at the
- * specified ordinal, to the fields of the specified JSON given the definitions
- * of the columns of the table.
- *
- * @param stmt A pointer to the statement for which to bind the values.
- * @param ord The ordinal at which to begin binding JSON fields.
- * @param row_json The JSON object specifying the field/column values to be
- * bound.
- * @param column_defs A vector of the column definitions for the table.
- * @return int An SQLITE_ constant indicating success or failure.
- */
-int sqlite3_bind_json(sqlite3_stmt *stmt, int ord, nlohmann::json &row_json,
-                      std::vector<ColumnDef> &column_defs);
 
 /**
  * @brief Converts the specified SQL value to an nlohmann::json value.

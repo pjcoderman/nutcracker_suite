@@ -198,7 +198,7 @@ int draft_schema_viewer_remove_from_view_registry(
   auto qry_str = sqlite3_mprintf(qry_fmt, view_registry_table_name);
 
   sqlite3_stmt *stmt = nullptr;
-  int rc = sqlite3_prepare_v2(db, nullptr, -1, &stmt, nullptr);
+  int rc = sqlite3_prepare_v2(db, qry_str, -1, &stmt, nullptr);
   sqlite3_free(qry_str);
   if (rc != SQLITE_OK) {
     return SQLITE_ERROR;
