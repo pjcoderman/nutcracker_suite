@@ -1,4 +1,5 @@
 #include "base64.h"
+#include "base64_encoding_tables.hpp"
 
 #include <array>
 #include <cstdint>
@@ -7,20 +8,6 @@
 #include <string>
 #include <string_view>
 #include <vector>
-
-// Global lookup tables
-constexpr char encoding_table[] =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-
-constexpr auto make_decoding_table() {
-  std::array<int, 256> table{};
-  table.fill(-1);
-  for (int i = 0; i < 64; ++i) {
-    table[static_cast<unsigned char>(encoding_table[i])] = i;
-  }
-  return table;
-}
-constexpr auto decoding_table = make_decoding_table();
 
 // ============================================================================
 // ENCODING CORE (Pointer + Length)
@@ -35,12 +22,15 @@ std::string base64_encode(const uint8_t *ptr, size_t length) {
     val = (val << 8) + ptr[i];
     valb += 8;
     while (valb >= 0) {
-      out.push_back(encoding_table[(val >> valb) & 0x3F]);
+      out.push_back(
+          base64_encoding_tables::encoding_table[(val >> valb) & 0x3F]);
       valb -= 6;
     }
   }
   if (valb > -6) {
-    out.push_back(encoding_table[((val << 8) >> (valb + 8)) & 0x3F]);
+    out.push_back(
+        base64_encoding_tables::encoding_table[((val << 8) >> (valb + 8)) &
+                                               0x3F]);
   }
   while (out.size() % 4 != 0) {
     out.push_back('=');
@@ -63,7 +53,8 @@ std::vector<uint8_t> base64_decode_vector(const char *ptr, size_t length) {
     if (c == '=')
       break; // Handle padding termination
 
-    int sexagesimal = decoding_table[static_cast<unsigned char>(c)];
+    int sexagesimal =
+        base64_encoding_tables::decoding_table[static_cast<unsigned char>(c)];
     if (sexagesimal == -1) {
       throw std::invalid_argument("Invalid character in Base64 string.");
     }
@@ -89,7 +80,8 @@ std::string base64_decode_string(const char *ptr, size_t length) {
     if (c == '=')
       break;
 
-    int sexagesimal = decoding_table[static_cast<unsigned char>(c)];
+    int sexagesimal =
+        base64_encoding_tables::decoding_table[static_cast<unsigned char>(c)];
     if (sexagesimal == -1) {
       throw std::invalid_argument("Invalid character in Base64 string.");
     }
